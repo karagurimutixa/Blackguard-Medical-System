@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Blackguard Foundation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      text-align: center;
+    }
+    .logo {
+      margin-bottom: 20px;
+    }
+    .form-container {
+      margin: 20px auto;
+      max-width: 400px;
+    }
+    .form-container input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      font-size: 16px;
+    }
+    .form-container button {
+      width: 100%;
+      padding: 10px;
+      background-color: #0066ff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .form-container button:hover {
+      background-color: #0056cc;
+    }
+    .discord-btn {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #7289da;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .discord-btn:hover {
+      background-color: #5a73b8;
+    }
+    .spinner {
+      margin: 20px auto;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="../Media/logo.png" alt="Logo" class="logo" width="150">
+    <div class="form-container">
+      <h1>Login</h1>
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button onclick="login()">Login</button>
+      <button class="discord-btn" onclick="loginWithDiscord()">Login with Discord</button>
+    </div>
+    <div class="spinner">
+      <!-- SVG Loader -->
+      <iframe src="../Elements/cardioball.html" style="border: none;" width="50" height="50"></iframe>
+    </div>
+  </div>
+  <script>
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        alert('Please fill out all fields.');
+        return;
+      }
+
+      document.querySelector('.spinner').style.display = 'block';
+
+      try {
+        const response = await fetch('/API/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const result = await response.json();
+        document.querySelector('.spinner').style.display = 'none';
+
+        if (result.success) {
+          alert('Login successful!');
+          window.location.href = '/dashboard'; // Redirect to dashboard
+        } else {
+          alert(result.message || 'Login failed.');
+        }
+      } catch (error) {
+        document.querySelector('.spinner').style.display = 'none';
+        alert('An error occurred during login.');
+      }
+    }
+
+    function loginWithDiscord() {
+      // Redirect to Discord OAuth2
+    alert(Ser)    }
+  </script>
+</body>
+</html>
