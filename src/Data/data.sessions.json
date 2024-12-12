@@ -1,0 +1,32 @@
+[
+  {
+    "token": "9ea59035c839b65d49886695916a145f6e7a8c95208894cefbfa73d6363fd596",
+    "username": "SuperAdmin",
+    "rank": "Super Admin",
+    "createdAt": "2024-12-12T16:36:15.233Z"
+  },
+  {
+    "token": "9dc1b15c135c059220ffdfa8f97b8641259590095b1723c964fadecd4c2d938c",
+    "username": "SuperAdmin",
+    "rank": "Super Admin",
+    "createdAt": "2024-12-12T16:36:17.102Z"
+  },
+  {
+    "token": "aaf24156b9094a4571d2791984b98c1b4961e3c6fd8ec621a4b78be061be6cc1",
+    "username": "SuperAdmin",
+    "rank": "Super Admin",
+    "createdAt": "2024-12-12T16:36:25.967Z"
+  },
+  {
+    "token": "4f84afcd0f0a702b05c83cae486b061b4bc30d1455d272b1cacd04bfd1324336",
+    "username": "SuperAdmin",
+    "rank": "Super Admin",
+    "createdAt": "2024-12-12T16:41:11.718Z"
+  },
+  {
+    "token": "73587d47467e0bd216ffd3c824e2f8cb37c51fd7f8f30748a0038644f31e8c9e",
+    "username": "SuperAdmin",
+    "rank": "Super Admin",
+    "createdAt": "2024-12-12T16:41:14.701Z"
+  }
+]

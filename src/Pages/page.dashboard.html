@@ -82,10 +82,54 @@
       font-size: 0.9rem;
       color: #999999;
     }
+    .loader {
+      display: none;
+      margin: 20px auto;
+      width: 100px;
+      height: 100px;
+      text-align: center;
+    }
+
+    .error-message {
+      color: #ff4444;
+      text-align: center;
+      margin: 10px 0;
+      padding: 10px;
+      background-color: rgba(255, 0, 0, 0.1);
+      border-radius: 4px;
+      display: none;
+    }
   </style>
 </head>
 <body>
+  <script>
+    // Immediate authentication check
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+        window.location.replace('/login');
+    }
+    
+    // Add token to all fetch requests
+    const originalFetch = window.fetch;
+    window.fetch = function() {
+        let [resource, config] = arguments;
+        if(config === undefined) {
+            config = {};
+        }
+        if(config.headers === undefined) {
+            config.headers = {};
+        }
+        config.headers['Authorization'] = authToken;
+        return originalFetch(resource, config);
+    };
+  </script>
+
   <div class="container">
+    <div class="loader" id="loader">
+      <object data="../Elements/cardioball.html" type="text/html" width="100" height="100"></object>
+    </div>
+    <div class="error-message" id="error-message"></div>
+    
     <!-- Header Section -->
     <div class="header">
       <h1 id="welcome">Welcome!</h1>
@@ -119,45 +163,82 @@
   </footer>
 
   <script>
+    const loader = document.getElementById('loader');
+    const errorMessage = document.getElementById('error-message');
+    
     async function fetchDashboardData() {
+      loader.style.display = 'block';
+      errorMessage.style.display = 'none';
+      
+      const authToken = localStorage.getItem('authToken');
+      console.log('Fetching with token:', authToken); // Debug log
+      
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': authToken
+      };
+      
       try {
         // Fetch User Info
-        const userResponse = await fetch('/api/dashboard/user');
-        const userInfo = await userResponse.json();
-        document.getElementById('welcome').textContent = `Welcome! ${userInfo.username}`;
-        document.getElementById('rank').textContent = `Your Rank: ${userInfo.rank}`;
+        const userResponse = await fetch('/api/dashboard/user', { headers });
+        console.log('User response:', userResponse.status); // Debug log
+        
+        if (!userResponse.ok) {
+          if (userResponse.status === 401) {
+            console.log('Unauthorized, clearing storage'); // Debug log
+            localStorage.clear();
+            window.location.replace('/login');
+            return;
+          }
+          throw new Error('Failed to fetch user data');
+        }
+
+        const userData = await userResponse.json();
+        console.log('User data:', userData); // Debug log
+        
+        document.getElementById('welcome').textContent = `Welcome, ${userData.username}!`;
+        document.getElementById('rank').textContent = `Your Rank: ${userData.rank}`;
 
         // Fetch Training Lessons
-        const lessonsResponse = await fetch('/api/dashboard/lessons');
+        const lessonsResponse = await fetch('/api/dashboard/lessons', { headers });
+        if (!lessonsResponse.ok) throw new Error('Failed to fetch lessons');
         const lessons = await lessonsResponse.json();
         const lessonsList = document.getElementById('training-lessons');
-        lessonsList.innerHTML = '';
+        lessonsList.innerHTML = lessons.length ? '' : '<li>No upcoming lessons</li>';
         lessons.forEach((lesson) => {
           const li = document.createElement('li');
-          li.textContent = lesson.name + ' - ' + lesson.date;
+          li.textContent = `${lesson.name} - ${lesson.date}`;
           lessonsList.appendChild(li);
         });
 
         // Fetch Training Sheets
-        const sheetsResponse = await fetch('/api/worksheet/sheets');
+        const sheetsResponse = await fetch('/api/worksheet/sheets', { headers });
+        if (!sheetsResponse.ok) throw new Error('Failed to fetch worksheets');
         const sheets = await sheetsResponse.json();
         const sheetsList = document.getElementById('training-sheets');
-        sheetsList.innerHTML = '';
+        sheetsList.innerHTML = sheets.length ? '' : '<li>No training sheets available</li>';
         sheets.forEach((sheet) => {
           const li = document.createElement('li');
           const link = document.createElement('a');
           link.href = sheet.url;
+          link.target = "_blank";
           link.textContent = sheet.title;
           li.appendChild(link);
           sheetsList.appendChild(li);
         });
 
         // Fetch Time Spent
-        const timeResponse = await fetch('/api/dashboard/time');
+        const timeResponse = await fetch('/api/dashboard/time', { headers });
+        if (!timeResponse.ok) throw new Error('Failed to fetch time data');
         const timeData = await timeResponse.json();
         document.getElementById('time-spent').textContent = timeData.timeSpent;
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        errorMessage.textContent = 'Error loading dashboard data. Please try again later.';
+        errorMessage.style.display = 'block';
+      } finally {
+        loader.style.display = 'none';
       }
     }
 

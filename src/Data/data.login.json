@@ -1,0 +1,48 @@
+[
+    {
+      "username": "SuperAdmin",
+      "password": "sprAdm",
+      "rank": "Super Admin"
+    },
+    {
+      "username": "AdminUser1",
+      "password": "admin123",
+      "rank": "Admin"
+    },
+    {
+      "username": "DoctorUser1",
+      "password": "doctor123",
+      "rank": "OF-1 Clinical Officer"
+    },
+    {
+      "username": "TraineeUser1",
+      "password": "trainee123",
+      "rank": "OR-1 Trainee"
+    },
+    {
+      "username": "PatientUser1",
+      "password": "patient123",
+      "rank": "Patient"
+    },
+    {
+      "username": "SupervisorUser1",
+      "password": "supervisor123",
+      "rank": "OR-9 Se. Medical Affairs Supervisor"
+    },
+    {
+      "username": "LeadManager1",
+      "password": "manager123",
+      "rank": "OF-7 Lead Medical Affairs Manager"
+    },
+    {
+      "username": "DirectorUser1",
+      "password": "director123",
+      "rank": "OF-8 Medical Affairs Director"
+    },
+    {
+      "username": "DeputyCMO1",
+      "password": "deputycmo123",
+      "rank": "OF-10 Deputy Chief Medical Officer"
+    }
+  ]
+  

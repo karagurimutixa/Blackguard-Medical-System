@@ -1,77 +1,156 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const rateLimiter = require('./api.ratelimiter.js');
+const { verifyCaptcha } = require('./api.captcha.js');
 
-const dataPath = path.join(__dirname, '../Data/data.credientals.json');
-const ranks = [
-  'Patient',
-  'OR-1 Trainee',
-  'OR-2 Assistant',
-  'OR-3 Jr. Technician',
-  'OR-4 Technician',
-  'OR-5 Se. Technician',
-  'OR-6 Liaison Specialist',
-  'OR-7 Clinical Affairs Specialist',
-  'OR-8 Medical Affairs Supervisor',
-  'OR-9 Se. Medical Affairs Supervisor',
-  'OF-1 Clinical Officer',
-  'OF-2 Se. Clinical Officer',
-  'OF-3 Medical Program Officer',
-  'OF-4 Medical Operations Manager',
-  'OF-5 Se. Medical Operations Manager',
-  'OF-6 Medical Affairs Manager',
-  'OF-7 Lead Medical Affairs Manager',
-  'OF-8 Medical Affairs Director',
-  'OF-9 Se. Medical Affairs Director',
-  'OF-10 Deputy Chief Medical Officer',
-  'OF-11 Chief Medical Officer',
-  'Admin',
-  'Super Admin',
-];
+const dataPath = path.join(__dirname, '../Data/data.login.json');
+const sessionsPath = path.join(__dirname, '../Data/data.sessions.json');
 
-// Ensure the data file and super admin account exist
+// Ensure data files exist
 function ensureDataFile() {
-  if (!fs.existsSync(dataPath)) {
-    const initialData = [
-      {
-        username: 'SuperAdmin',
-        password: 'sprAdm',
-        rank: 'Super Admin',
-      },
-    ];
-    fs.writeFileSync(dataPath, JSON.stringify(initialData, null, 2));
+  try {
+    // Ensure directories exist
+    if (!fs.existsSync(path.dirname(dataPath))) {
+      fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    }
+    
+    // Ensure login data file exists
+    if (!fs.existsSync(dataPath)) {
+      const initialData = [
+        {
+          username: 'SuperAdmin',
+          password: 'sprAdm',
+          rank: 'Super Admin'
+        }
+      ];
+      fs.writeFileSync(dataPath, JSON.stringify(initialData, null, 2));
+    }
+    
+    // Ensure sessions file exists
+    if (!fs.existsSync(sessionsPath)) {
+      fs.writeFileSync(sessionsPath, JSON.stringify([], null, 2));
+    }
+  } catch (error) {
+    console.error('Error ensuring data files:', error);
+  }
+}
+
+// Generate session token
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Save session
+function saveSession(username, rank) {
+  try {
+    const sessions = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+    const token = generateToken();
+    
+    // Add new session
+    sessions.push({
+      token,
+      username,
+      rank,
+      createdAt: new Date().toISOString()
+    });
+    
+    // Save sessions
+    fs.writeFileSync(sessionsPath, JSON.stringify(sessions, null, 2));
+    return token;
+  } catch (error) {
+    console.error('Error saving session:', error);
+    return null;
   }
 }
 
 // Validate login credentials
 function validateLogin(username, password) {
-  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  const user = data.find(
-    (entry) => entry.username === username && entry.password === password
-  );
-  return user ? { success: true, rank: user.rank } : { success: false };
+  try {
+    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    const user = data.find(
+      (entry) => entry.username === username && entry.password === password
+    );
+    return user ? { success: true, rank: user.rank } : { success: false };
+  } catch (error) {
+    console.error('Error validating login:', error);
+    return { success: false };
+  }
 }
 
 // API endpoint for login
-function loginAPI(req, res) {
-  const { username, password } = req.body;
+async function loginAPI(req, res) {
+  const ip = req.ip;
+  const { username, password, captchaResponse } = req.body;
+  
+  // Check rate limit
+  const rateLimit = rateLimiter.checkAttempt(ip);
+  
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ 
+      success: false, 
+      message: rateLimit.message,
+      requiresCaptcha: rateLimit.requiresCaptcha 
+    });
+  }
+
+  // Verify CAPTCHA if required
+  if (rateLimit.requiresCaptcha) {
+    if (!captchaResponse) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please complete the CAPTCHA',
+        requiresCaptcha: true 
+      });
+    }
+
+    const captchaResult = await verifyCaptcha(captchaResponse);
+    if (!captchaResult.success) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid CAPTCHA. Please try again.',
+        requiresCaptcha: true 
+      });
+    }
+  }
+
   if (!username || !password) {
     return res.status(400).json({ success: false, message: 'Missing fields.' });
   }
 
   const result = validateLogin(username, password);
+  
   if (result.success) {
-    res.json({ success: true, rank: result.rank });
+    const token = saveSession(username, result.rank);
+    if (token) {
+      rateLimiter.resetAttempts(ip); // Reset on successful login
+      res.json({ 
+        success: true, 
+        rank: result.rank,
+        token: token
+      });
+    } else {
+      res.status(500).json({ success: false, message: 'Error creating session.' });
+    }
   } else {
-    res.status(401).json({ success: false, message: 'Invalid credentials.' });
+    console.log('Login failed:', { username });
+    res.status(401).json({ 
+      success: false, 
+      message: 'Invalid credentials.',
+      requiresCaptcha: rateLimit.requiresCaptcha
+    });
   }
 }
 
-// API endpoint for Discord OAuth2
-function loginWithDiscord(req, res) {
-  // Redirect to Discord OAuth2 endpoint
-  res.redirect(
-    `https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&response_type=code&scope=identify`
-  );
+// Validate session token
+function validateSession(token) {
+  try {
+    const sessions = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+    return sessions.find(session => session.token === token) || null;
+  } catch (error) {
+    console.error('Error validating session:', error);
+    return null;
+  }
 }
 
-module.exports = { ensureDataFile, loginAPI, loginWithDiscord };
+module.exports = { ensureDataFile, loginAPI, validateSession };
